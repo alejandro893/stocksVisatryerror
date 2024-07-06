@@ -7,8 +7,13 @@ Created on Fri Jul  5 10:43:50 2024
 
 import os
 import csv
+import numpy as np
 import pandas as pd
 import sqlite3
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import seaborn as sns
+
 
 data_base_cvs = r"C:\Users\Alejandro\Desktop\Jobs2024\Atradius\R\new\stocksVisatryerror\MVR.csv"
 data_base_excel = r"C:\Users\Alejandro\Desktop\Jobs2024\Atradius\R\new\stocksVisatryerror\MVR_excel.xlsx"
@@ -77,5 +82,79 @@ Data_frame_csv.replace('', pd.NA, inplace=True)
 Data_frame_csv.replace('None', pd.NA, inplace=True)
 Data_frame_csv_clear = Data_frame_csv.dropna(how='any')
 cols_pos = Data_frame_csv.iloc[:, [0, 2]]
+mean_data_frame_csv = Data_frame_csv['Open_M'].mean()
+std_data_frame_csv = Data_frame_csv['Open_M'].std()
+Data_frame_csv.index = pd.to_datetime(Data_frame_csv.index)
+
+def remove_outliers(df):
+    # Calcular el IQR para cada columna numérica
+    Q1 = df.quantile(0.25)
+    Q3 = df.quantile(0.75)
+    IQR = Q3 - Q1
+
+    # Filtrar las filas que están dentro de los límites
+    df_clean = df[~((df < (Q1 - 2 * IQR)) | (df > (Q3 + 2 * IQR))).any(axis=1)]
+    return df_clean
+
+df_clean = remove_outliers(df = Data_frame_csv[['Open_M']])
+df_clean = remove_outliers(df = Data_frame_csv)
+
+def remove_outliers(df, column, window_size=30, z_threshold=3):
+    # Crear una copia del DataFrame para no modificar el original
+    df_filtered = df.copy()
+
+    # Calcular el rolling mean y rolling std (desviación estándar) con una ventana de 30 días
+    rolling_mean = df_filtered[column].rolling(window=window_size, min_periods=1).mean()
+    rolling_std = df_filtered[column].rolling(window=window_size, min_periods=1).std()
+
+    # Calcular el z-score
+    z_scores = (df_filtered[column] - rolling_mean) / rolling_std
+
+    # Eliminar los outliers basados en el umbral del z-score
+    df_filtered = df_filtered[np.abs(z_scores) <= z_threshold]
+
+    return df_filtered
+
+# Aplicar la función al DataFrame
+for column in df_clean.columns:
+    df_clean = remove_outliers(df_clean, column)
+
+# Definir la fecha límite
+date_limit = '2016-01-05'
+
+# Convertir la fecha límite a datetime (por si acaso no es datetime)
+date_limit = pd.to_datetime(date_limit)
+
+# Filtrar el DataFrame para eliminar filas anteriores a la fecha límite
+filtered_df = df_clean[df_clean.index >= date_limit]
 
 
+def plot_and_save_histograms_scatterplots(df, output_dir='plots'):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    for column in df.columns:
+        # Histograma
+        plt.figure()
+        sns.histplot(df[column], kde=True, color="red")
+        plt.title(f'Histogram of {column}')
+        plt.savefig(f'{output_dir}/histogram_{column}.png')
+        plt.show()
+        
+        # Scatter plot con las fechas
+        plt.figure()
+        plt.scatter(df.index, df[column], color="white", edgecolor="red")
+        plt.title(f'Scatter plot of {column} vs Date')
+        plt.xlabel('Date')
+        plt.ylabel(column)
+        
+        # Ajustar las etiquetas del eje x
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=10))  # Limitar a 10 etiquetas
+        plt.xticks(rotation=45)
+        
+        plt.savefig(f'{output_dir}/scatterplot_{column}.png')
+        plt.show()
+
+# Llamada a la función
+plot_and_save_histograms_scatterplots(df_clean)
