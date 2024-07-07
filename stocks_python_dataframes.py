@@ -59,7 +59,6 @@ with open(data_base_cvs, mode='r') as file:
     
     
     
-    
 ###### vamos a operar ahora el dataframe de csv ###########
 Data_frame_csv = Data_frame_csv[['Open_M', 'High_M', 'Low_M', 'Close_M', 'Adj Close_M', 'Volume_M']]
 cols_pos = Data_frame_csv.iloc[:, [0, 2]]
@@ -99,7 +98,7 @@ def remove_outliers(df):
 df_clean = remove_outliers(df = Data_frame_csv[['Open_M']])
 df_clean = remove_outliers(df = Data_frame_csv)
 
-def remove_outliers(df, column, window_size=30, z_threshold=3):
+def remove_outliers_rolled(df, column, window_size=30, z_threshold=3):
     # Crear una copia del DataFrame para no modificar el original
     df_filtered = df.copy()
 
@@ -115,9 +114,14 @@ def remove_outliers(df, column, window_size=30, z_threshold=3):
 
     return df_filtered
 
+print(df_clean)
+print(type(df_clean))
 # Aplicar la función al DataFrame
 for column in df_clean.columns:
-    df_clean = remove_outliers(df_clean, column)
+    df_clean = remove_outliers_rolled(df_clean, column)
+    
+print(df_clean)
+print(type(df_clean))
 
 # Definir la fecha límite
 date_limit = '2016-01-05'
